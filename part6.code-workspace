@@ -7,7 +7,7 @@
 	"settings": {
 		"makefile.makefilePath": "./Makefile",
 		"makefile.compileCommandsPath": "./compile_commands.json",
-		"clangd.enable": true,
+		"clangd.enable": false,
 		"clangd.arguments": [
 			"--compile-commands-dir=.",
 			"--background-index",
