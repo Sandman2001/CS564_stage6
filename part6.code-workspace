@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"makefile.makefilePath": "./Makefile",
+		"makefile.compileCommandsPath": "./compile_commands.json",
+		"clangd.enable": true,
+		"clangd.arguments": [
+			"--compile-commands-dir=.",
+			"--background-index",
+			"--clang-tidy"
+		],
+		"clangd.fallbackFlags": [
+			"-std=c++17",
+			"-Wall",
+			"-Wextra"
+		]
+	}
+}
