@@ -86,7 +86,10 @@ const Status QU_Delete(const string & relation,
 	Status nextStatus = hfs->endScan();
 	if (status == OK) status = nextStatus;
 	delete hfs;
-	if (status == FILEEOF)
+	if (status == NORECORDS)
+		status = OK;
+	
+
 return OK;
 
 

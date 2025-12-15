@@ -89,35 +89,9 @@ const Status ScanSelect(const string & result,
 	//start scan
 	if (attrDesc != nullptr) {
 		//convert filter value to proper type
-		void* value = nullptr;
-		switch (attrDesc->attrType) {
-		case INTEGER:
-			{
-				int* intVal = new int;
-				*intVal = atoi(filter);
-				value = intVal;
-				break;
-			}
-		case FLOAT:
-			{
-				float* floatVal = new float;
-				*floatVal = atof(filter);
-				value = floatVal;
-				break;
-			}
-		case STRING:
-			{
-				value = (void*)filter;
-				break;
-			}
-		}
+
 		status = hfs->startScan(0, attrDesc->attrLen, (Datatype)attrDesc->attrType,
-			value, op);
-		//clean up
-		if (attrDesc->attrType == INTEGER)
-			delete (int*)value;
-		else if (attrDesc->attrType == FLOAT)
-			delete (float*)value;
+			filter, op);
 		if (status != OK) {
 			delete hfs;
 			return status;
