@@ -95,12 +95,19 @@ const Status QU_Insert(const string & relation,
 					}
 					printf("   Copied STRING to off=%d copyLen=%d pad=%d\n", ad.attrOffset, copyLen, (ad.attrLen - copyLen));
 				} else if (ad.attrType == INTEGER) {
-					// For numeric values, ignore provided length and copy binary width
-					memcpy(data + ad.attrOffset, attrList[j].attrValue, sizeof(int));
-					printf("   Copied INTEGER to off=%d bytes=%d (inputLen=%d)\n", ad.attrOffset, (int)sizeof(int), attrList[j].attrLen);
+					// Parse ASCII value to binary int then copy
+					int v = 0;
+					if (attrList[j].attrValue != nullptr)
+						v = atoi((const char*)attrList[j].attrValue);
+					memcpy(data + ad.attrOffset, &v, sizeof(int));
+					printf("   Parsed INTEGER=%d, copied to off=%d bytes=%d (inputLen=%d)\n", v, ad.attrOffset, (int)sizeof(int), attrList[j].attrLen);
 				} else if (ad.attrType == FLOAT) {
-					memcpy(data + ad.attrOffset, attrList[j].attrValue, sizeof(float));
-					printf("   Copied FLOAT to off=%d bytes=%d (inputLen=%d)\n", ad.attrOffset, (int)sizeof(float), attrList[j].attrLen);
+					// Parse ASCII value to binary float then copy
+					float v = 0.0f;
+					if (attrList[j].attrValue != nullptr)
+						v = (float)atof((const char*)attrList[j].attrValue);
+					memcpy(data + ad.attrOffset, &v, sizeof(float));
+					printf("   Parsed FLOAT=%f, copied to off=%d bytes=%d (inputLen=%d)\n", v, ad.attrOffset, (int)sizeof(float), attrList[j].attrLen);
 				}
 				found = true;
 				break;
