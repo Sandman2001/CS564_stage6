@@ -79,30 +79,33 @@ const Status ScanSelect(const string & result,
 			const int reclen)
 {
     cout << "Doing HeapFileScan Selection using ScanSelect()" << endl;
-	Status status;
-	HeapFileScan* hfs;
-	hfs = new HeapFileScan(attrDesc->relName, status);
-	if (status != OK) {
-		delete hfs;
-		return status;
-	}
-	//start scan
-	status = hfs->startScan((attrDesc != nullptr) ? attrDesc->attrOffset : 0,
-		(attrDesc != nullptr) ? attrDesc->attrLen : 0,
-		(attrDesc != nullptr) ? (Datatype)attrDesc->attrType : STRING,
-		filter, op);
-	if (status != OK) {
-		delete hfs;
-		return status;
-	}
-	
-	//create result heap file
-	HeapFile* resultHF = new HeapFile(result, status);
-	if (status != OK) {
-		hfs->endScan();
-		delete hfs;
-		return status;
-	}
+    Status status;
+
+    // Determine the relation to scan:
+    // If a selection attribute is provided, use its relation name; otherwise,
+    // use the relation from the first projection attribute.
+    const char* scanRelName = (attrDesc != nullptr)
+        ? attrDesc->relName
+        : projNames[0].relName;
+
+    HeapFileScan* hfs = new HeapFileScan(scanRelName, status);
+    if (status != OK) {
+        delete hfs;
+        return status;
+    }
+
+    // Start scan: for unconditional scan (attrDesc == nullptr), use zero len/offset and a null filter.
+    status = hfs->startScan(
+        (attrDesc != nullptr) ? attrDesc->attrOffset : 0,
+        (attrDesc != nullptr) ? attrDesc->attrLen    : 0,
+        (attrDesc != nullptr) ? (Datatype)attrDesc->attrType : STRING,
+        (attrDesc != nullptr) ? filter : NULL,
+        op
+    );
+    if (status != OK) {
+        delete hfs;
+        return status;
+    }
 
     // create inserter for result heap file
     InsertFileScan* resultInserter = new InsertFileScan(result, status);
@@ -113,44 +116,41 @@ const Status ScanSelect(const string & result,
         return status;
     }
 
-	RID rid;
-	Record rec;
-	//scan through records
-	while ((status = hfs->scanNext(rid)) == OK) {
-		//get record
-		status = hfs->getRecord(rec);
-		if (status != OK) {	
-			hfs->endScan();
-			delete hfs;
-			delete resultHF;
-			return status;
-		}
-		//project attributes
-		char* data = new char[reclen];
-		for (int i = 0; i < projCnt; i++) {
-			//get attribute value from record
-			void* attrData = (char*)rec.data + projNames[i].attrOffset;
-			//copy to data area at correct offset
-			memcpy(data + projNames[i].attrOffset, attrData, projNames[i].attrLen);
-		}
-		//create new record
-		Record outRec;
-		outRec.data = data;
-		outRec.length = reclen;
-		//insert record into result heap file
-		RID outRid;
-		status = resultInserter->insertRecord(outRec, outRid);
-		//clean up
-		delete[] data;
-		if (status != OK) {
-			hfs->endScan();
-			delete hfs;
-			delete resultHF;
-			return status;
-		}
-	}
-	hfs->endScan();
-	delete hfs;
-	delete resultInserter;
-	return OK;
+    RID rid;
+    Record rec;
+    //scan through records
+    while ((status = hfs->scanNext(rid)) == OK) {
+        //get record
+        status = hfs->getRecord(rec);
+        if (status != OK) {	
+            hfs->endScan();
+            delete hfs;
+            delete resultInserter;
+            return status;
+        }
+        //project attributes
+        char* data = new char[reclen];
+        for (int i = 0; i < projCnt; i++) {
+            void* attrData = (char*)rec.data + projNames[i].attrOffset;
+            memcpy(data + projNames[i].attrOffset, attrData, projNames[i].attrLen);
+        }
+        //create new record
+        Record outRec;
+        outRec.data = data;
+        outRec.length = reclen;
+        //insert record into result heap file
+        RID outRid;
+        status = resultInserter->insertRecord(outRec, outRid);
+        delete[] data;
+        if (status != OK) {
+            hfs->endScan();
+            delete hfs;
+            delete resultInserter;
+            return status;
+        }
+    }
+    hfs->endScan();
+    delete hfs;
+    delete resultInserter;
+    return OK;
 }
