@@ -87,24 +87,15 @@ const Status ScanSelect(const string & result,
 		return status;
 	}
 	//start scan
-	if (attrDesc != nullptr) {
-		//convert filter value to proper type
-
-		status = hfs->startScan(0, attrDesc->attrLen, (Datatype)attrDesc->attrType,
-			filter, op);
-		if (status != OK) {
-			delete hfs;
-			return status;
-		}
-
-	} else {
-		//unconditional scan
-		status = hfs->startScan();
-		if (status != OK) {
-			delete hfs;
-			return status;
-		}
+	status = hfs->startScan((attrDesc != nullptr) ? attrDesc->attrOffset : 0,
+		(attrDesc != nullptr) ? attrDesc->attrLen : 0,
+		(attrDesc != nullptr) ? (Datatype)attrDesc->attrType : STRING,
+		filter, op);
+	if (status != OK) {
+		delete hfs;
+		return status;
 	}
+	
 	//create result heap file
 	HeapFile* resultHF = new HeapFile(result, status);
 	if (status != OK) {
