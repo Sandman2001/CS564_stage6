@@ -29,7 +29,7 @@ const Status QU_Insert(const string & relation,
 	Status status;
   	RelDesc rd;
   	AttrDesc ad;
-	
+	int attrcnt_in_rel;
 	//check that relation exists	
 	status = relCat->getInfo(relation, rd);
 	if (status != OK)
@@ -40,9 +40,14 @@ const Status QU_Insert(const string & relation,
 	
 	//get all attribute info and check types and lengths
 	AttrDesc* allAttrs = nullptr;
-	status = attrCat->getRelInfo(relation, attrCnt, allAttrs); //The attrs array is allocated by this function, but it should be deallocated by the caller.
+	status = attrCat->getRelInfo(relation, attrcnt_in_rel, allAttrs); //The attrs array is allocated by this function, but it should be deallocated by the caller.
 	if (status != OK)
 		return status;
+	//check that attrCnt matches
+	if (attrcnt_in_rel != attrCnt) {
+		free(allAttrs);
+		return BADINSERTATTCNT;
+	}
 	//create record data area
 	char* data = new char[PAGESIZE]; //assume tuple fits in one page
 	memset(data, 0, PAGESIZE);
