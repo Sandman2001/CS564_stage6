@@ -57,9 +57,13 @@ const Status QU_Select(const string & result,
 			return status;
 		}	
 	}
-	//call ScanSelect to do the actual work
-	status = ScanSelect(result, projCnt, projAttrs, selAttr, op, attrValue,
-		(selAttr != nullptr) ? selAttr->attrLen : 0);
+    // compute output record length as sum of projected attribute lengths
+    int outRecLen = 0;
+    for (int i = 0; i < projCnt; i++) outRecLen += projAttrs[i].attrLen;
+
+    //call ScanSelect to do the actual work
+    status = ScanSelect(result, projCnt, projAttrs, selAttr, op, attrValue,
+        outRecLen);
 	//clean up
 	delete[] projAttrs;
 	if (selAttr != nullptr)
@@ -135,15 +139,16 @@ const Status ScanSelect(const string & result,
 
         printf("[ScanSelect] Record %d: inRec.length=%d\n", recNum, (int)rec.length);
 
-        // project attributes
-        char* data = new char[reclen];
-        if (reclen > 0) memset(data, 0, reclen);
+            // project attributes (pack sequentially from offset 0)
+            char* data = new char[reclen];
+            if (reclen > 0) memset(data, 0, reclen);
+            int destOff = 0;
 
-        for (int i = 0; i < projCnt; i++) {
-            const int srcOff = projNames[i].attrOffset;
-            const int len    = projNames[i].attrLen;
-            const Datatype type = (Datatype)projNames[i].attrType;
-            void* attrData = (char*)rec.data + srcOff;
+            for (int i = 0; i < projCnt; i++) {
+                const int srcOff = projNames[i].attrOffset;
+                const int len    = projNames[i].attrLen;
+                const Datatype type = (Datatype)projNames[i].attrType;
+                void* attrData = (char*)rec.data + srcOff;
 
             printf("  Attr[%d] %s.%s off=%d len=%d type=%d\n",
                    i, projNames[i].relName, projNames[i].attrName, srcOff, len, (int)type);
@@ -180,11 +185,12 @@ const Status ScanSelect(const string & result,
                     printf("    (unknown type)\n");
             }
 
-            // copy into destination buffer at same offset
-            if (reclen >= srcOff + len) {
-                memcpy(data + srcOff, attrData, len);
+            // copy into destination buffer at packed offset
+            if (reclen >= destOff + len) {
+                memcpy(data + destOff, attrData, len);
             }
-            printf("    copied to dest off=%d len=%d\n", srcOff, len);
+            printf("    copied to dest off=%d len=%d\n", destOff, len);
+            destOff += len;
         }
 
         // final output buffer dump
@@ -193,8 +199,10 @@ const Status ScanSelect(const string & result,
         printf("\n");
 
         // show projected fields from output buffer
+        // show projected fields from output buffer using packed offsets
+        destOff = 0;
         for (int i = 0; i < projCnt; i++) {
-            const int off  = projNames[i].attrOffset;
+            const int off  = destOff;
             const int len  = projNames[i].attrLen;
             const Datatype type = (Datatype)projNames[i].attrType;
             void* p = data + off;
@@ -225,6 +233,7 @@ const Status ScanSelect(const string & result,
                 default:
                     printf(" (unknown type)\n");
             }
+            destOff += len;
         }
 
         // create new record
