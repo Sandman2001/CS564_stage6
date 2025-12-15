@@ -24,13 +24,15 @@ const Status QU_Delete(const string & relation,
 	Status status;
 	AttrDesc delAttr;
 	//get attribute descriptor for deletion attribute
-	status = attrCat->getInfo(relation, attrName, delAttr);
-	if (status != OK) {
-		return status;
-	}
-	//check that type matches
-	if (delAttr.attrType != type) {
-		return ATTRTYPEMISMATCH;
+	if(!attrName.empty()){
+		status = attrCat->getInfo(relation, attrName, delAttr);
+		if (status != OK) {
+			return status;
+		}
+		//check that type matches
+		if (delAttr.attrType != type) {
+			return ATTRTYPEMISMATCH;
+		}
 	}
 	//set up heap file scan
 	HeapFileScan* hfs;
@@ -42,7 +44,7 @@ const Status QU_Delete(const string & relation,
 	
 	//start scan
 	status = hfs->startScan(delAttr.attrOffset, delAttr.attrLen, (Datatype)delAttr.attrType,
-		attrValue, op);
+		(attrValue != nullptr) ? attrValue : NULL, op);
 
 	if (status != OK) {	
 		delete hfs;
