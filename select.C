@@ -104,6 +104,15 @@ const Status ScanSelect(const string & result,
 		return status;
 	}
 
+    // create inserter for result heap file
+    InsertFileScan* resultInserter = new InsertFileScan(result, status);
+    if (status != OK) {
+        hfs->endScan();
+        delete hfs;
+        delete resultInserter;
+        return status;
+    }
+
 	RID rid;
 	Record rec;
 	//scan through records
@@ -130,7 +139,7 @@ const Status ScanSelect(const string & result,
 		outRec.length = reclen;
 		//insert record into result heap file
 		RID outRid;
-		status = resultHF->insertRecord(outRec, outRid);
+		status = resultInserter->insertRecord(outRec, outRid);
 		//clean up
 		delete[] data;
 		if (status != OK) {
@@ -142,6 +151,6 @@ const Status ScanSelect(const string & result,
 	}
 	hfs->endScan();
 	delete hfs;
-	delete resultHF;
+	delete resultInserter;
 	return OK;
 }
