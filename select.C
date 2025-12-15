@@ -1,5 +1,6 @@
 #include "catalog.h"
 #include "query.h"
+#include <stdlib.h>
 
 
 // forward declaration
@@ -61,8 +62,25 @@ const Status QU_Select(const string & result,
     int outRecLen = 0;
     for (int i = 0; i < projCnt; i++) outRecLen += projAttrs[i].attrLen;
 
+    // Prepare filter value: convert numeric string to binary for INTEGER/FLOAT
+    const char* filterPtr = attrValue; // default for STRING or no predicate
+    int filterInt = 0;
+    float filterFloat = 0.0f;
+    if (selAttr != nullptr) {
+        if (selAttr->attrType == INTEGER) {
+            filterInt = atoi(attrValue);
+            filterPtr = reinterpret_cast<const char*>(&filterInt);
+        } else if (selAttr->attrType == FLOAT) {
+            filterFloat = (float)atof(attrValue);
+            filterPtr = reinterpret_cast<const char*>(&filterFloat);
+        } else {
+            // STRING: leave as-is
+            filterPtr = attrValue;
+        }
+    }
+
     //call ScanSelect to do the actual work
-    status = ScanSelect(result, projCnt, projAttrs, selAttr, op, attrValue,
+    status = ScanSelect(result, projCnt, projAttrs, selAttr, op, filterPtr,
         outRecLen);
 	//clean up
 	delete[] projAttrs;
