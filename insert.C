@@ -81,7 +81,12 @@ const Status QU_Insert(const string & relation,
 					return BADINSERTPARM;
 				}
 				if (ad.attrType == STRING) {
-					int copyLen = attrList[j].attrLen;
+					int providedLen = attrList[j].attrLen;
+					if (providedLen < 0 && attrList[j].attrValue != nullptr) {
+						providedLen = (int)strlen((const char*)attrList[j].attrValue);
+					}
+					if (providedLen < 0) providedLen = 0; // safety
+					int copyLen = providedLen;
 					if (copyLen > ad.attrLen) copyLen = ad.attrLen; // truncate if needed
 					memcpy(data + ad.attrOffset, attrList[j].attrValue, copyLen);
 					// pad remaining bytes with zeros if provided value shorter than schema length
@@ -90,23 +95,12 @@ const Status QU_Insert(const string & relation,
 					}
 					printf("   Copied STRING to off=%d copyLen=%d pad=%d\n", ad.attrOffset, copyLen, (ad.attrLen - copyLen));
 				} else if (ad.attrType == INTEGER) {
-					if (attrList[j].attrLen < (int)sizeof(int)) {
-						printf("  BADINSERTPARM: INTEGER value length %d < %d\n", attrList[j].attrLen, (int)sizeof(int));
-						free(allAttrs);
-						delete[] data;
-						return BADINSERTPARM;
-					}
+					// For numeric values, ignore provided length and copy binary width
 					memcpy(data + ad.attrOffset, attrList[j].attrValue, sizeof(int));
-					printf("   Copied INTEGER to off=%d bytes=%d\n", ad.attrOffset, (int)sizeof(int));
+					printf("   Copied INTEGER to off=%d bytes=%d (inputLen=%d)\n", ad.attrOffset, (int)sizeof(int), attrList[j].attrLen);
 				} else if (ad.attrType == FLOAT) {
-					if (attrList[j].attrLen < (int)sizeof(float)) {
-						printf("  BADINSERTPARM: FLOAT value length %d < %d\n", attrList[j].attrLen, (int)sizeof(float));
-						free(allAttrs);
-						delete[] data;
-						return BADINSERTPARM;
-					}
 					memcpy(data + ad.attrOffset, attrList[j].attrValue, sizeof(float));
-					printf("   Copied FLOAT to off=%d bytes=%d\n", ad.attrOffset, (int)sizeof(float));
+					printf("   Copied FLOAT to off=%d bytes=%d (inputLen=%d)\n", ad.attrOffset, (int)sizeof(float), attrList[j].attrLen);
 				}
 				found = true;
 				break;
