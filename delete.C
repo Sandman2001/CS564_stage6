@@ -1,4 +1,5 @@
 #include "catalog.h"
+#include "page.h"
 #include "query.h"
 
 
@@ -38,42 +39,17 @@ const Status QU_Delete(const string & relation,
 		delete hfs;
 		return status;
 	}
-	//convert filter value to proper type
-	// void* value = nullptr;
-	// switch (type) {
-	// case INTEGER:
-	// 	{
-	// 		int* intVal = new int;
-	// 		*intVal = atoi(attrValue);
-	// 		value = intVal;
-	// 		break;
-	// 	}
-	// case FLOAT:
-	// 	{
-	// 		float* floatVal = new float;
-	// 		*floatVal = atof(attrValue);
-	// 		value = floatVal;
-	// 		break;
-	// 	}
-	// case STRING:
-	// 	{
-	// 		value = (void*)attrValue;
-	// 		break;
-	// 	}
-	// }
-	// //start scan
-	status = hfs->startScan(0, delAttr.attrLen, (Datatype)delAttr.attrType,
+	
+	//start scan
+	status = hfs->startScan(delAttr.attrOffset, delAttr.attrLen, (Datatype)delAttr.attrType,
 		attrValue, op);
-	//clean up
-	// if (type == INTEGER)
-	// 	delete (int*)value;
-	// else if (type == FLOAT)
-	// 	delete (float*)value;
+
 	if (status != OK) {	
 		delete hfs;
 		return status;
 	}	
 	RID rid;
+	Record rec;
 	//scan through records and delete them
 	while ((status = hfs->scanNext(rid)) == OK) {
 		status = hfs->deleteRecord();
@@ -84,10 +60,11 @@ const Status QU_Delete(const string & relation,
 		}
 	}
 	Status nextStatus = hfs->endScan();
-	if (status == OK) status = nextStatus;
 	delete hfs;
-	if (status == NORECORDS)
-		status = OK;
+	if (nextStatus != OK && nextStatus != FILEEOF) { //Either deletes or does not find the record (EOF is ok)
+		return nextStatus;
+	}
+	
 	
 
 return OK;
