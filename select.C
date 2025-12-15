@@ -35,8 +35,7 @@ const Status QU_Select(const string & result,
 		       const Operator op, 
 		       const char *attrValue)
 {
-   // Qu_Select sets up things and then calls ScanSelect to do the actual work
-    cout << "Doing QU_Select " << endl;
+    // Qu_Select sets up things and then calls ScanSelect to do the actual work
 	//get attribute descriptors for projection attributes
 	AttrDesc* projAttrs = new AttrDesc[projCnt];
 	Status status;
@@ -91,16 +90,14 @@ const Status QU_Select(const string & result,
 
 
 const Status ScanSelect(const string & result, 
-#include "stdio.h"
-#include "stdlib.h"
-			const int projCnt, 
+            const int projCnt, 
 			const AttrDesc projNames[],
 			const AttrDesc *attrDesc, 
 			const Operator op, 
 			const char *filter,
 			const int reclen)
 {
-    cout << "Doing HeapFileScan Selection using ScanSelect()" << endl;
+    
     Status status;
 
     // Determine the relation to scan:
@@ -155,8 +152,6 @@ const Status ScanSelect(const string & result,
             return status;
         }
 
-        printf("[ScanSelect] Record %d: inRec.length=%d\n", recNum, (int)rec.length);
-
             // project attributes (pack sequentially from offset 0)
             char* data = new char[reclen];
             if (reclen > 0) memset(data, 0, reclen);
@@ -168,88 +163,9 @@ const Status ScanSelect(const string & result,
                 const Datatype type = (Datatype)projNames[i].attrType;
                 void* attrData = (char*)rec.data + srcOff;
 
-            printf("  Attr[%d] %s.%s off=%d len=%d type=%d\n",
-                   i, projNames[i].relName, projNames[i].attrName, srcOff, len, (int)type);
-
-            // source bytes
-            printf("    src bytes:");
-            for (int b = 0; b < len; b++) printf(" %02X", ((unsigned char*)attrData)[b]);
-            printf("\n");
-
-            // typed view
-            switch (type) {
-                case INTEGER: {
-                    int v = 0;
-                    memcpy(&v, attrData, (int)sizeof(int) <= len ? sizeof(int) : len);
-                    printf("    as int: %d\n", v);
-                    break;
-                }
-                case FLOAT: {
-                    float v = 0.0f;
-                    memcpy(&v, attrData, (int)sizeof(float) <= len ? sizeof(float) : len);
-                    printf("    as float: %f\n", v);
-                    break;
-                }
-                case STRING: {
-                    int slen = len;
-                    char* sbuf = (char*)malloc(slen + 1);
-                    memcpy(sbuf, attrData, slen);
-                    sbuf[slen] = '\0';
-                    printf("    as string: '%s'\n", sbuf);
-                    free(sbuf);
-                    break;
-                }
-                default:
-                    printf("    (unknown type)\n");
-            }
-
             // copy into destination buffer at packed offset
             if (reclen >= destOff + len) {
                 memcpy(data + destOff, attrData, len);
-            }
-            printf("    copied to dest off=%d len=%d\n", destOff, len);
-            destOff += len;
-        }
-
-        // final output buffer dump
-        printf("  Output record len=%d hex:", reclen);
-        for (int b = 0; b < reclen; b++) printf(" %02X", ((unsigned char*)data)[b]);
-        printf("\n");
-
-        // show projected fields from output buffer
-        // show projected fields from output buffer using packed offsets
-        destOff = 0;
-        for (int i = 0; i < projCnt; i++) {
-            const int off  = destOff;
-            const int len  = projNames[i].attrLen;
-            const Datatype type = (Datatype)projNames[i].attrType;
-            void* p = data + off;
-
-            printf("  Out Attr[%d] %s.%s:", i, projNames[i].relName, projNames[i].attrName);
-            switch (type) {
-                case INTEGER: {
-                    int v = 0;
-                    memcpy(&v, p, (int)sizeof(int) <= len ? sizeof(int) : len);
-                    printf(" int=%d\n", v);
-                    break;
-                }
-                case FLOAT: {
-                    float v = 0.0f;
-                    memcpy(&v, p, (int)sizeof(float) <= len ? sizeof(float) : len);
-                    printf(" float=%f\n", v);
-                    break;
-                }
-                case STRING: {
-                    int slen = len;
-                    char* sbuf = (char*)malloc(slen + 1);
-                    memcpy(sbuf, p, slen);
-                    sbuf[slen] = '\0';
-                    printf(" str='%s'\n", sbuf);
-                    free(sbuf);
-                    break;
-                }
-                default:
-                    printf(" (unknown type)\n");
             }
             destOff += len;
         }
@@ -262,7 +178,6 @@ const Status ScanSelect(const string & result,
         // insert record into result heap file
         RID outRid;
         status = resultInserter->insertRecord(outRec, outRid);
-        printf("  Insert status=%d\n", (int)status);
 
         delete[] data;
         if (status != OK) {
