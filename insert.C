@@ -1,6 +1,7 @@
 #include "catalog.h"
 #include "error.h"
 #include "query.h"
+#include <stdio.h>
 
 
 /*
@@ -26,6 +27,8 @@ const Status QU_Insert(const string & relation,
 	const attrInfo attrList[])
 {
 // part 6
+    printf("Doing QU_Insert\n");
+    printf("QU_Insert: relation='%s' attrCnt=%d\n", relation.c_str(), attrCnt);
 	Status status;
   	RelDesc rd;
   	AttrDesc ad;
@@ -34,17 +37,26 @@ const Status QU_Insert(const string & relation,
 	status = relCat->getInfo(relation, rd);
 	if (status != OK)
 		return status;
+	printf(" relCat.getInfo OK: relName='%s' expectedAttrCnt=%d\n", rd.relName, rd.attrCnt);
 	//check that attrCnt matches
 	if (rd.attrCnt !=  attrCnt)
+	{
+		printf(" BADINSERTATTCNT: rd.attrCnt=%d input.attrCnt=%d\n", rd.attrCnt, attrCnt);
 		return BADINSERTATTCNT;
+	}
 	
 	//get all attribute info and check types and lengths
 	AttrDesc* allAttrs = nullptr;
 	status = attrCat->getRelInfo(relation, attrcnt_in_rel, allAttrs); //The attrs array is allocated by this function, but it should be deallocated by the caller.
 	if (status != OK)
 		return status;
+	printf(" attrCat.getRelInfo OK: attrcnt_in_rel=%d\n", attrcnt_in_rel);
+	for (int ai = 0; ai < attrcnt_in_rel; ai++) {
+		printf("  Attr[%d] name='%s' type=%d len=%d off=%d\n", ai, allAttrs[ai].attrName, allAttrs[ai].attrType, allAttrs[ai].attrLen, allAttrs[ai].attrOffset);
+	}
 	//check that attrCnt matches
 	if (attrcnt_in_rel != attrCnt) {
+		printf(" BADINSERTATTCNT: catalogAttrCnt=%d inputAttrCnt=%d\n", attrcnt_in_rel, attrCnt);
 		free(allAttrs);
 		return BADINSERTATTCNT;
 	}
@@ -54,13 +66,16 @@ const Status QU_Insert(const string & relation,
 	//for each attribute in relation, find it in attrList and copy value to data area
 	for (int i = 0; i < attrCnt; i++) {
 		ad = allAttrs[i];
+		printf(" Mapping attr '%s' (type=%d len=%d off=%d)\n", ad.attrName, ad.attrType, ad.attrLen, ad.attrOffset);
 		//find attribute in attrList
 		bool found = false;
 		for (int j = 0; j < attrCnt; j++) {
 			if (strcmp(ad.attrName, attrList[j].attrName) == 0)
 			{
+				printf("  Found input '%s' (type=%d len=%d)\n", attrList[j].attrName, attrList[j].attrType, attrList[j].attrLen);
 				//check type and copy value respecting declared attrLen
 				if (ad.attrType != attrList[j].attrType) {
+					printf("  BADINSERTPARM: type mismatch: relType=%d inputType=%d\n", ad.attrType, attrList[j].attrType);
 					free(allAttrs);
 					delete[] data;
 					return BADINSERTPARM;
@@ -73,20 +88,25 @@ const Status QU_Insert(const string & relation,
 					if (copyLen < ad.attrLen) {
 						memset(data + ad.attrOffset + copyLen, 0, ad.attrLen - copyLen);
 					}
+					printf("   Copied STRING to off=%d copyLen=%d pad=%d\n", ad.attrOffset, copyLen, (ad.attrLen - copyLen));
 				} else if (ad.attrType == INTEGER) {
 					if (attrList[j].attrLen < (int)sizeof(int)) {
+						printf("  BADINSERTPARM: INTEGER value length %d < %d\n", attrList[j].attrLen, (int)sizeof(int));
 						free(allAttrs);
 						delete[] data;
 						return BADINSERTPARM;
 					}
 					memcpy(data + ad.attrOffset, attrList[j].attrValue, sizeof(int));
+					printf("   Copied INTEGER to off=%d bytes=%d\n", ad.attrOffset, (int)sizeof(int));
 				} else if (ad.attrType == FLOAT) {
 					if (attrList[j].attrLen < (int)sizeof(float)) {
+						printf("  BADINSERTPARM: FLOAT value length %d < %d\n", attrList[j].attrLen, (int)sizeof(float));
 						free(allAttrs);
 						delete[] data;
 						return BADINSERTPARM;
 					}
 					memcpy(data + ad.attrOffset, attrList[j].attrValue, sizeof(float));
+					printf("   Copied FLOAT to off=%d bytes=%d\n", ad.attrOffset, (int)sizeof(float));
 				}
 				found = true;
 				break;
@@ -94,6 +114,7 @@ const Status QU_Insert(const string & relation,
 		}
 		if (!found) {
 			//attribute not found in attrList
+			printf("  BADINSERTPARM: missing attribute '%s' in input list\n", ad.attrName);
 			free(allAttrs);
 			delete[] data;
 			return BADINSERTPARM;
@@ -107,9 +128,11 @@ const Status QU_Insert(const string & relation,
 	for (int i = 0; i < attrCnt; i++) {
 		rec.length += allAttrs[i].attrLen;
 	}
+	printf(" Prepared record length=%d bytes\n", rec.length);
 	//insert record into heap file
 	HeapFile hf(relation, status);
 	if (status != OK) {
+		printf(" HeapFile open failed, status=%d\n", (int)status);
 		free(allAttrs);
 		delete[] data;
 		return status;
@@ -117,11 +140,13 @@ const Status QU_Insert(const string & relation,
 	RID rid;
 	InsertFileScan ifs(relation, status);
 	if (status != OK) {
+		printf(" InsertFileScan open failed, status=%d\n", (int)status);
 		free(allAttrs);
 		delete[] data;
 		return status;
 	}
 	status = ifs.insertRecord(rec, rid);
+	printf(" insertRecord status=%d\n", (int)status);
 	//clean up
 	free(allAttrs);
 	delete[] data;
