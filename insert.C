@@ -59,14 +59,35 @@ const Status QU_Insert(const string & relation,
 		for (int j = 0; j < attrCnt; j++) {
 			if (strcmp(ad.attrName, attrList[j].attrName) == 0)
 			{
-				//check type and length
-				if (ad.attrType != attrList[j].attrType || ad.attrLen != attrList[j].attrLen) {
+				//check type and copy value respecting declared attrLen
+				if (ad.attrType != attrList[j].attrType) {
 					free(allAttrs);
 					delete[] data;
 					return BADINSERTPARM;
 				}
-				//copy value to data area at correct offset
-				memcpy(data + ad.attrOffset, attrList[j].attrValue, ad.attrLen);
+				if (ad.attrType == STRING) {
+					int copyLen = attrList[j].attrLen;
+					if (copyLen > ad.attrLen) copyLen = ad.attrLen; // truncate if needed
+					memcpy(data + ad.attrOffset, attrList[j].attrValue, copyLen);
+					// pad remaining bytes with zeros if provided value shorter than schema length
+					if (copyLen < ad.attrLen) {
+						memset(data + ad.attrOffset + copyLen, 0, ad.attrLen - copyLen);
+					}
+				} else if (ad.attrType == INTEGER) {
+					if (attrList[j].attrLen < (int)sizeof(int)) {
+						free(allAttrs);
+						delete[] data;
+						return BADINSERTPARM;
+					}
+					memcpy(data + ad.attrOffset, attrList[j].attrValue, sizeof(int));
+				} else if (ad.attrType == FLOAT) {
+					if (attrList[j].attrLen < (int)sizeof(float)) {
+						free(allAttrs);
+						delete[] data;
+						return BADINSERTPARM;
+					}
+					memcpy(data + ad.attrOffset, attrList[j].attrValue, sizeof(float));
+				}
 				found = true;
 				break;
 			}
