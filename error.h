@@ -51,7 +51,7 @@ enum Status {
 
 // Query errors
 
-       ATTRTYPEMISMATCH, TMP_RES_EXISTS,
+       ATTRTYPEMISMATCH, TMP_RES_EXISTS, BADINSERTATTCNT, BADINSERTPARM,
 
 // do not touch filler -- add codes before it
 
