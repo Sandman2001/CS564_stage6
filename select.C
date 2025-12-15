@@ -118,29 +118,125 @@ const Status ScanSelect(const string & result,
 
     RID rid;
     Record rec;
-    //scan through records
+    int recNum = 0;
+
+    // scan through records
     while ((status = hfs->scanNext(rid)) == OK) {
-        //get record
+        recNum++;
+
+        // get record
         status = hfs->getRecord(rec);
-        if (status != OK) {	
+        if (status != OK) {
             hfs->endScan();
             delete hfs;
             delete resultInserter;
             return status;
         }
-        //project attributes
+
+        printf("[ScanSelect] Record %d: inRec.length=%d\n", recNum, (int)rec.length);
+
+        // project attributes
         char* data = new char[reclen];
+        if (reclen > 0) memset(data, 0, reclen);
+
         for (int i = 0; i < projCnt; i++) {
-            void* attrData = (char*)rec.data + projNames[i].attrOffset;
-            memcpy(data + projNames[i].attrOffset, attrData, projNames[i].attrLen);
+            const int srcOff = projNames[i].attrOffset;
+            const int len    = projNames[i].attrLen;
+            const Datatype type = (Datatype)projNames[i].attrType;
+            void* attrData = (char*)rec.data + srcOff;
+
+            printf("  Attr[%d] %s.%s off=%d len=%d type=%d\n",
+                   i, projNames[i].relName, projNames[i].attrName, srcOff, len, (int)type);
+
+            // source bytes
+            printf("    src bytes:");
+            for (int b = 0; b < len; b++) printf(" %02X", ((unsigned char*)attrData)[b]);
+            printf("\n");
+
+            // typed view
+            switch (type) {
+                case INTEGER: {
+                    int v = 0;
+                    memcpy(&v, attrData, (int)sizeof(int) <= len ? sizeof(int) : len);
+                    printf("    as int: %d\n", v);
+                    break;
+                }
+                case FLOAT: {
+                    float v = 0.0f;
+                    memcpy(&v, attrData, (int)sizeof(float) <= len ? sizeof(float) : len);
+                    printf("    as float: %f\n", v);
+                    break;
+                }
+                case STRING: {
+                    int slen = len;
+                    char* sbuf = (char*)malloc(slen + 1);
+                    memcpy(sbuf, attrData, slen);
+                    sbuf[slen] = '\0';
+                    printf("    as string: '%s'\n", sbuf);
+                    free(sbuf);
+                    break;
+                }
+                default:
+                    printf("    (unknown type)\n");
+            }
+
+            // copy into destination buffer at same offset
+            if (reclen >= srcOff + len) {
+                memcpy(data + srcOff, attrData, len);
+            }
+            printf("    copied to dest off=%d len=%d\n", srcOff, len);
         }
-        //create new record
+
+        // final output buffer dump
+        printf("  Output record len=%d hex:", reclen);
+        for (int b = 0; b < reclen; b++) printf(" %02X", ((unsigned char*)data)[b]);
+        printf("\n");
+
+        // show projected fields from output buffer
+        for (int i = 0; i < projCnt; i++) {
+            const int off  = projNames[i].attrOffset;
+            const int len  = projNames[i].attrLen;
+            const Datatype type = (Datatype)projNames[i].attrType;
+            void* p = data + off;
+
+            printf("  Out Attr[%d] %s.%s:", i, projNames[i].relName, projNames[i].attrName);
+            switch (type) {
+                case INTEGER: {
+                    int v = 0;
+                    memcpy(&v, p, (int)sizeof(int) <= len ? sizeof(int) : len);
+                    printf(" int=%d\n", v);
+                    break;
+                }
+                case FLOAT: {
+                    float v = 0.0f;
+                    memcpy(&v, p, (int)sizeof(float) <= len ? sizeof(float) : len);
+                    printf(" float=%f\n", v);
+                    break;
+                }
+                case STRING: {
+                    int slen = len;
+                    char* sbuf = (char*)malloc(slen + 1);
+                    memcpy(sbuf, p, slen);
+                    sbuf[slen] = '\0';
+                    printf(" str='%s'\n", sbuf);
+                    free(sbuf);
+                    break;
+                }
+                default:
+                    printf(" (unknown type)\n");
+            }
+        }
+
+        // create new record
         Record outRec;
         outRec.data = data;
         outRec.length = reclen;
-        //insert record into result heap file
+
+        // insert record into result heap file
         RID outRid;
         status = resultInserter->insertRecord(outRec, outRid);
+        printf("  Insert status=%d\n", (int)status);
+
         delete[] data;
         if (status != OK) {
             hfs->endScan();
