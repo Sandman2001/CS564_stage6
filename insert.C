@@ -94,7 +94,7 @@ const Status QU_Insert(const string & relation,
 		return status;
 	}
 	RID rid;
-	InsertFileScan ifs(&hf, status);
+	InsertFileScan ifs(relation, status);
 	if (status != OK) {
 		free(allAttrs);
 		delete[] data;
