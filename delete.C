@@ -39,36 +39,36 @@ const Status QU_Delete(const string & relation,
 		return status;
 	}
 	//convert filter value to proper type
-	void* value = nullptr;
-	switch (type) {
-	case INTEGER:
-		{
-			int* intVal = new int;
-			*intVal = atoi(attrValue);
-			value = intVal;
-			break;
-		}
-	case FLOAT:
-		{
-			float* floatVal = new float;
-			*floatVal = atof(attrValue);
-			value = floatVal;
-			break;
-		}
-	case STRING:
-		{
-			value = (void*)attrValue;
-			break;
-		}
-	}
-	//start scan
+	// void* value = nullptr;
+	// switch (type) {
+	// case INTEGER:
+	// 	{
+	// 		int* intVal = new int;
+	// 		*intVal = atoi(attrValue);
+	// 		value = intVal;
+	// 		break;
+	// 	}
+	// case FLOAT:
+	// 	{
+	// 		float* floatVal = new float;
+	// 		*floatVal = atof(attrValue);
+	// 		value = floatVal;
+	// 		break;
+	// 	}
+	// case STRING:
+	// 	{
+	// 		value = (void*)attrValue;
+	// 		break;
+	// 	}
+	// }
+	// //start scan
 	status = hfs->startScan(0, delAttr.attrLen, (Datatype)delAttr.attrType,
-		value, op);
+		attrValue, op);
 	//clean up
-	if (type == INTEGER)
-		delete (int*)value;
-	else if (type == FLOAT)
-		delete (float*)value;
+	// if (type == INTEGER)
+	// 	delete (int*)value;
+	// else if (type == FLOAT)
+	// 	delete (float*)value;
 	if (status != OK) {	
 		delete hfs;
 		return status;
